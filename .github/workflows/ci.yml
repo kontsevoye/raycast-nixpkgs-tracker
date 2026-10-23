@@ -1,4 +1,4 @@
-name: Check extension
+name: Check and release
 
 on:
   push:
@@ -9,18 +9,50 @@ on:
 permissions:
   contents: read
 
+# Queue pushes instead of discarding an intermediate release or racing for a version.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.bundle.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run bundle
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - name: Test, lint, typecheck and bundle in the shared devShell
+        run: nix develop --no-update-lock-file --command npm run check
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: bundle
+        with:
+          name: extension-${{ github.sha }}-${{ github.run_attempt }}
+          path: nixpkgs-tracker.rayext
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.check.outputs.artifact-id }}
+          path: .
+          merge-multiple: true
+      - name: Allocate SemVer tag and publish the tested bundle
+        run: nix develop --no-update-lock-file --command node scripts/release.mjs --publish
+        env:
+          GH_TOKEN: ${{ github.token }}

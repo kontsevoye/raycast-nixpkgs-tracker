@@ -30,18 +30,22 @@ Requests go directly to the GitHub API. No tracker account or self-hosted servic
 
 ## Installation
 
-Requires macOS, a recent version of [Raycast](https://www.raycast.com/), Node.js 22 or later, and npm.
+Requires macOS, a recent version of [Raycast](https://www.raycast.com/), and
+[Nix with flakes enabled](https://nix.dev/install-nix).
 
 ```sh
 git clone https://github.com/kontsevoye/raycast-nixpkgs-tracker.git
 cd raycast-nixpkgs-tracker
-npm ci
+nix develop
 npm run dev
 ```
 
 The official Raycast CLI imports the extension. Once the build is ready, stop the
 watcher with `Ctrl+C`; the command remains installed. Search for **Track NixPkgs PR**
 in Raycast to use it.
+
+`nix develop` supplies Node.js 22, npm and all JavaScript dependencies from the
+committed lock files. No global Node/npm installation or separate `npm ci` is needed.
 
 Prebuilt `.rayext` bundles are also available in [Releases](https://github.com/kontsevoye/raycast-nixpkgs-tracker/releases).
 
@@ -95,18 +99,45 @@ binary cache. Checks run on demand; background polling and notifications are not
 ## Development
 
 ```sh
-npm test
-npm run build
-npm run typecheck
-npm run lint
-npm run bundle
+nix develop --command npm run check
 ```
 
-`npm run bundle` creates `nixpkgs-tracker.rayext`. To regenerate the icon, install
-ImageMagick with librsvg support and run `python3 scripts/make-icon.py`.
+The same command runs locally and in CI: tests, production build, type checking,
+ESLint, Prettier, workflow/Nix formatting checks, and bundling. The devShell pins
+the toolchain through `flake.lock` and uses `importNpmLock` to build/link
+`node_modules` from `package-lock.json`, including integrity-checked npm tarballs.
+It supports macOS and Linux on ARM64 and x86-64; the extension itself targets macOS.
+
+Inside `nix develop`, individual commands such as `npm test`, `npm run dev` and
+`npm run bundle` are also available. `npm run bundle` creates `nixpkgs-tracker.rayext`.
+Python and ImageMagick are included for `python3 scripts/make-icon.py`.
+
+To change a JavaScript dependency, run `npm install package@version` inside the
+devShell. The project's `.npmrc` makes this a lock-file-only update; leave and
+re-enter `nix develop` to rebuild/link the dependencies. Commit both package files.
+Use `nix flake update` to update the pinned toolchain and commit `flake.lock`.
+
+If migrating an older npm-based checkout, move aside the existing `node_modules`
+directory once before entering the devShell. Nix owns this directory afterwards.
 
 `npm run lint:store` additionally validates Raycast Store metadata, including a
 registered Raycast author username. Local installation does not require a Store account.
+
+## Automatic releases
+
+Every push to **main** runs the shared Nix checks. After success, GitHub Actions
+creates a SemVer tag and publishes the exact checked `.rayext` bundle with generated
+release notes. PRs and manual check runs do not publish releases.
+
+| Changes since the previous stable tag                               | Increment | Example             |
+| ------------------------------------------------------------------- | --------- | ------------------- |
+| Default, including `fix:`, `docs:`, `ci:` and unstructured messages | Patch     | `v0.1.0` → `v0.1.1` |
+| `feat:` or `feat(scope):`                                           | Minor     | `v0.1.0` → `v0.2.0` |
+| `type!:` / `type(scope)!:` or a `BREAKING CHANGE:` footer           | Major     | `v0.1.0` → `v1.0.0` |
+
+The highest level across all unreleased commits wins. Re-running a workflow for
+the same tagged commit finishes or reuses its release instead of allocating another
+version. See [release behavior and recovery](docs/RELEASING.md).
 
 ## Credits and license
 

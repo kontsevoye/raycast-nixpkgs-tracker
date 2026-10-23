@@ -3,3 +3,5 @@ dist/
 *.rayext
 raycast-env.d.ts
 .DS_Store
+.direnv/
+result
