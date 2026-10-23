@@ -1,0 +1,72 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "nixpkgs-tracker",
+  "title": "NixPkgs PR Tracker",
+  "description": "See which NixPkgs branches contain a pull request.",
+  "icon": "nixpkgs-tracker.png",
+  "author": "e-kontsevoy",
+  "license": "MIT",
+  "categories": [
+    "Developer Tools"
+  ],
+  "platforms": [
+    "macOS"
+  ],
+  "commands": [
+    {
+      "name": "track-pr",
+      "title": "Track NixPkgs PR",
+      "description": "Track a PR through staging, master and NixPkgs channels.",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "pr",
+          "type": "text",
+          "placeholder": "PR number or URL",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "preferences": [
+    {
+      "name": "githubToken",
+      "type": "password",
+      "required": false,
+      "title": "GitHub Personal Access Token (Optional)",
+      "description": "Alternatively, use Sign in with GitHub in the command. A manual token takes precedence over GitHub sign-in. Public read access is sufficient."
+    },
+    {
+      "name": "branches",
+      "type": "textfield",
+      "required": false,
+      "title": "Branches to Check",
+      "description": "Comma-separated Git refs. The PR's target branch is also checked automatically.",
+      "default": "staging, staging-next, master, nixpkgs-unstable, nixos-unstable-small, nixos-unstable"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "2.9.0",
+    "@raycast/utils": "2.3.3"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "2.2.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "react": "^19.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.9.0"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "build": "ray build -e dist",
+    "bundle": "ray bundle",
+    "lint": "eslint src && prettier --check .",
+    "lint:store": "ray lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/lib/*.test.ts",
+    "format": "prettier --write ."
+  }
+}
